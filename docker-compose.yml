@@ -1,0 +1,56 @@
+# Use root/example as user/password credentials
+version: '3.6'
+
+networks:
+  dauth-network:
+    driver: bridge
+
+services:
+  dauth-mongo:
+    container_name: mongo
+    image: mongo
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: dauth
+    volumes:
+      - /private/tmp/mongodb/data:/data/db
+      - /private/tmp/mongodb/config:/data/configdb
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    networks:
+      - dauth-network
+
+  dauth-mongo-express:
+    container_name: mongo-exp
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: root
+      ME_CONFIG_OPTIONS_EDITORTHEME: ambiance
+    depends_on:
+      - dauth-mongo
+    networks:
+      - dauth-network
+
+
+## APP should be started in separate container when mongodb is connected
+##--> app should become resilient against db-outage
+#  danney-auth:
+#    container_name: dauth-app
+#    restart: always
+#    build:
+#      context: .
+#    ports:
+#      - 8085:8085
+#    expose:
+#      - 8085
+#    depends_on:
+#      - dauth-mongo
+#    networks:
+#      - dauth-network
