@@ -37,8 +37,11 @@ public class UsersService {
     }
 
     @DeleteMapping("/{id}")
-    public String delete(@PathVariable String id) {
-        userRepository.deleteById(id);
-        return "Record deleted";
+    public Optional<User> delete(@PathVariable String id) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if(userOpt.isPresent()) {
+            userRepository.deleteById(id);
+        }
+        return userOpt;
     }
 }
