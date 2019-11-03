@@ -3,45 +3,67 @@ package com.danney.auth.user;
 import com.danney.auth.db.User;
 import com.danney.auth.db.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.NoSuchElementException;
 
-@RestController
-@RequestMapping("/api/users")
-public class UsersService {
+@Service
+public class UsersService implements UserDetailsService {
+
+    private String validationError;
 
     @Autowired
     private UserRepository userRepository;
 
-    @GetMapping("/hello")
-    public String hello() {
-        return "Wello Horld!";
+    public List<User> find() {
+        return userRepository.findAllQuery();
     }
 
-    @PostMapping
-    public String saveUser(@RequestBody User user) {
-        userRepository.save(user);
-        return "Saved User with id: " + user.getId();
+    public User find(String id) {
+        return userRepository.findByIdQuery(id).orElseThrow(() -> new NoSuchElementException("User not found"));
     }
 
-    @GetMapping
-    public List<User> getUsers() {
-        return userRepository.findAll();
+    protected boolean save(User user) {
+        return this.validate(user) && !userRepository.save(user.forCreate()).getId().isEmpty();
     }
 
-    @GetMapping("/{id}")
-    public Optional<User> getUser(@PathVariable String id) {
-        return userRepository.findById(id);
+    protected User delete(String id) {
+        User user = find(id); // exception is thrown if not found
+        userRepository.deleteById(id);
+        return user;
     }
 
-    @DeleteMapping("/{id}")
-    public Optional<User> delete(@PathVariable String id) {
-        Optional<User> userOpt = userRepository.findById(id);
-        if(userOpt.isPresent()) {
-            userRepository.deleteById(id);
+    public User findByUsername(String username) {
+        return userRepository.findByUsername(username).orElseThrow(
+                () -> new UsernameNotFoundException("user not found"));
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return findByUsername(username);
+    }
+
+    public boolean validate(User user) {
+        validationError = "";
+
+        if(user.isMissingFields()) {
+            validationError = "Mandatory fields are not present";
+            return false;
         }
-        return userOpt;
+
+        if(userRepository.findByUsername(user.getUsername()).isPresent()) {
+            validationError = "Username is already taken";
+            return false;
+        }
+
+        return true;
+    }
+
+    public String getValidationError() {
+        return validationError;
     }
 }
